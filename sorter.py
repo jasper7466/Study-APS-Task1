@@ -8,7 +8,7 @@ mp3.log.setLevel("ERROR")   # Отключаем вывод предупрежд
 @click.command()
 @click.option('-s', '--src_dir', default=os.getcwd(), help='Source directory')
 @click.option('-d', '--dst_dir', default=os.getcwd(), help='Destination directory')
-@click.option('-r', '--nested', default=False, help='Set "True" for enable searching nested files inside subdirectories')
+@click.option('-n', '--nested', default=False, help='Set "True" for enable searching nested files inside subdirectories')
 def sort(src_dir, dst_dir, nested=False):
     """Simple program that sorts mp3-files."""
     n = 0
@@ -26,6 +26,8 @@ def sort(src_dir, dst_dir, nested=False):
                     os.renames(f.path, os.path.join(dst_dir, f.tag.album_artist, f.tag.album, name + '.mp3'))
                 else:
                     print(f'Warning: artist or album not defined for {f.path}')
+        if not nested:
+            return
 
 
 if __name__ == '__main__':
