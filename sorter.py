@@ -1,8 +1,8 @@
 import os
 import click
 import eyed3 as mp3
-
-mp3.log.setLevel("ERROR")   # Отключаем вывод предупреждений. Теперь в консоль будут выводиться только ошибки.
+from colorama import Fore   # Модуль для кросплатформенного форматирования
+from colorama import init   # консольного вывода
 
 
 def check_exist(path):  # Работает на Win
@@ -28,7 +28,7 @@ def allowed_x(path, *args, notify=True):    # Проверка прав дост
     for check in args:
         if not os.access(path, checks[check][0]):
             if notify:
-                print(checks[check][1])
+                print(Fore.RED + checks[check][1])
             return False
     return True
 
@@ -40,7 +40,7 @@ def mp3_processor(path):
         result = f'{t.title if t.title else os.path.basename(path)[:-4]} - {t.album_artist} - {t.album + ".mp3"}'
         result = os.path.join(t.album_artist, t.album, result)
     else:                           # Если хотя бы 1 пуст - выводим сообщение
-        print(f'Warning: Tags "artist" or "album" not defined for {path}')
+        print(Fore.RED + f'Warning: Tags "artist" or "album" not defined for {path}')
         result = path               # Как результат вернём исходный путь
     return result
 
@@ -54,31 +54,36 @@ def move(src, dst, notify=True):
         if not os.listdir(d):       # Проверяем на "пустоту", т.к. метод replace не удаляет за собой пустые папки
             os.removedirs(d)        # Если файлов нет - удаляем
     finally:
-        if notify:                      # Если вызов с флагом "notify", то
-            print(f'{src} -> {dst}')    # выводим сообщение в лог
+        if notify:                                  # Если вызов с флагом "notify", то
+            print(Fore.GREEN + f'{src} -> {dst}')   # выводим сообщение в лог
 
 
 @click.command()
 @click.option('-s', '--src_dir', default=os.getcwd(), help='Source directory')
 @click.option('-d', '--dst_dir', default=os.getcwd(), help='Destination directory')
-@click.option('-n', '--nested', default=False, help='Set "True" to enable searching nested files inside subdirectories')
-def sort(src_dir, dst_dir, nested=False):
+@click.option('-n', '--nested', default=False, help='Searching nested files inside subdirectories. Set "True" to enable')
+@click.option('-c', '--create', default=False, help='Auto create destination directory. Set "True" to enable ')
+def sort(src_dir, dst_dir, nested=False, create=False):
     """Simple program that sorts mp3-files."""
 
+    # Предварительные проверки
     if not os.path.isdir(src_dir):                  # Проверяем исходный путь на директорию
-        print(f'Путь {src_dir} не является директорией')
+        if not allowed_x(src_dir, 'exist'):         # Проверяем наличие исходной директории,
+            return                                  # Если она не существует - выходим
+        else:                                       # Если существует, но не директория
+            print(Fore.RED + f'Путь {src_dir} не является директорией')
         return
-    if os
 
-    if not allowed_x(src_dir, 'exist'):             # Проверяем наличие исходной директории,
-        return                                      # если она не существует - выходим
     if not allowed_x(dst_dir, 'exist'):             # Проверяем наличие директории назначения, если её нет - то
-        if input('Хотите создать директорию [y - да / n - выход]? ') != 'y':    # предлагаем создать
-            return                                  # Если пользователь не хочет создавать - выходим
+        if not create:                              # Если без вызваны флага автосоздания директории
+            print(Fore.YELLOW + 'Хотите создать директорию [y - да / n - выход]?',  end=' ')   # предлагаем создать
+            if input() != 'y':
+                return                              # Если пользователь не хочет создавать - выходим
     else:
         if not allowed_x(dst_dir, 'write'):         # Если директория назначения существует,
-            return                                  # но прав на запись не имеем - выходим
+            return                                  # но прав на записьв неё не имеем - выходим
 
+    # Основной алгоритм
     for d, dirs, files in os.walk(src_dir):         # Итерируемся по дереву
         if not allowed_x(d, 'write'):               # Проверяем разрешение на запись в папке (чтобы переименовать файл),
             continue                                # если его нету - идём в следующую директорию
@@ -87,10 +92,12 @@ def sort(src_dir, dst_dir, nested=False):
                 old = os.path.join(d, file)         # Получаем "старый" путь
                 new = os.path.join(dst_dir, mp3_processor(old))     # Формируем новый путь
                 if new != old:                      # Проверяем на идентичность путей
-                    move(old, new)                  # Перемещаем файл
-        if not nested:                              # Если запустились в режиме поверхностного поиска - выходим,
+                    move(old, new)                  # Перемещаем файл, если они различны
+        if not nested:                              # Если запустились в режиме "поверхностного поиска" - выходим,
             return                                  # т.к. корневую директорию уже проверили
 
 
 if __name__ == '__main__':
-    sort()
+    init(autoreset=True)        # Инициализация с автосбросом цвета текста на значение по умолчанию после вызова print()
+    mp3.log.setLevel("ERROR")   # Отключаем вывод предупреждений. Теперь в консоль будут выводиться только ошибки.
+    sort()                      # Запуск основной функции
