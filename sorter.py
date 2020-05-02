@@ -19,6 +19,13 @@ def check_read(path):   # Работает на Win только для файл
 
 
 def allowed_x(path, *args, notify=True):    # Проверка прав доступа. На ОС Windows работает частично
+    """
+    Function allowed_x(path, *args, notify=True)
+    Checks access to files and directories.
+    Types of access (*args): 'exist', 'read', 'write', 'execute'.
+    Returns `True` if `path` passed all specified checks.
+    To disable console logging - clear `notify` flag (set `False`).
+    """
     checks = {
         'exist': [os.F_OK, f'Путь {path} не существует'],
         'read': [os.R_OK, f'Недостаточно прав для чтения из {path}'],
@@ -34,6 +41,10 @@ def allowed_x(path, *args, notify=True):    # Проверка прав дост
 
 
 def mp3_processor(path):
+    """
+    Function `mp3_processor(path).`
+    Analyzes ID3 tags of file from `path` and generate new path according some rules.
+    """
     f = mp3.load(path)  # Файл
     t = f.tag           # Тег
     if t.album_artist and t.album:  # Если оба тега не пусты, формируем новый путь
@@ -46,6 +57,11 @@ def mp3_processor(path):
 
 
 def move(src, dst, notify=True):
+    """
+    Function `move(src, dst, notify).`
+    Moves files from `src` path to `dst` path.
+    To disable console logging - clear `notify` flag (set `False`).
+    """
     try:
         os.renames(src, dst)        # Пытаемся переместить файл
     except FileExistsError:         # Если в директории назначения он уже существует
