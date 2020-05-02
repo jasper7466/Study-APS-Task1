@@ -5,27 +5,68 @@ import eyed3 as mp3
 mp3.log.setLevel("ERROR")   # Отключаем вывод предупреждений. Теперь в консоль будут выводиться только ошибки.
 
 
+def check_exist(path):  # Работает на Win норм
+    return os.access(path, os.F_OK)
+
+
+def check_read(path):   # Работает на Win норм
+    try:
+        with open(path) as file:
+            temp = file.read()
+            file.write('t')
+    except PermissionError:
+        return False
+    return True
+
+
+def allowed_x(path, *args, notify=True):
+    checks = {
+        'exist': [os.F_OK, f'Путь {path} не существует'],
+        'read': [os.R_OK, f'Недостаточно прав для чтения из {path}'],
+        'write': [os.W_OK, f'Недостаточно прав для записи в {path}'],
+        'execute': [os.X_OK, f'Недостаточно прав для запуска на выполнение {path}']
+    }
+    for check in args:
+        if not os.access(path, checks[check][0]):
+            if notify:
+                print(checks[check][1])
+            return False
+    return True
+
+
 @click.command()
 @click.option('-s', '--src_dir', default=os.getcwd(), help='Source directory')
 @click.option('-d', '--dst_dir', default=os.getcwd(), help='Destination directory')
 @click.option('-n', '--nested', default=False, help='Set "True" for enable searching nested files inside subdirectories')
 def sort(src_dir, dst_dir, nested=False):
     """Simple program that sorts mp3-files."""
-    n = 0
-    for dir, dirs, files in os.walk(src_dir):
-        for file in files:
+
+    if not allowed_x(src_dir, 'exist'):
+        return
+    if not allowed_x(dst_dir, 'exist'):
+        if input('Хотите создать директорию [y - да / n - выход]? ') != 'y':
+            return
+    else:
+        if not allowed_x(dst_dir, 'write'):
+            return
+
+    for d, dirs, files in os.walk(src_dir):               # Итерирование по дереву
+        if not allowed_x(d, 'write'):
+            continue
+        for file in files:                                  # Итерировнаие по файлам
             if file.endswith('.mp3'):                       # Если mp3
-                f = mp3.load(os.path.join(dir, file))
-                if f.tag.album_artist and f.tag.album:      # Если прописаны теги "исполнитель" и "альбом"
-                    f.rename('rebase-in-progress')
-                    if f.tag.title:                         # Если прописан тег "название"
-                        name = f'{f.tag.title} - {f.tag.album_artist} - {f.tag.album}'
-                    else:
-                        name = f'{file[:-4]} - {f.tag.album_artist} - {f.tag.album}'
+                f = mp3.load(os.path.join(d, file))       # Открываем
+                t = f.tag
+                if t.album_artist and t.album:              # Если прописаны теги "исполнитель" и "альбом"
+                    name = f'{t.title if t.title else file[:-4]} - {t.album_artist} - {t.album}'
                     f.rename(name)
-                    os.renames(f.path, os.path.join(dst_dir, f.tag.album_artist, f.tag.album, name + '.mp3'))
+                    paths = (f.path, os.path.join(dst_dir, t.album_artist, t.album, name + '.mp3'))
+                    try:
+                        os.renames(*paths)
+                    except FileExistsError:
+                        os.replace(*paths)
                 else:
-                    print(f'Warning: artist or album not defined for {f.path}')
+                    print(f'Warning: Tags "artist" or "album" not defined for {f.path}')
         if not nested:
             return
 
