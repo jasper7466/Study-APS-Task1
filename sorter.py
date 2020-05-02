@@ -5,21 +5,20 @@ import eyed3 as mp3
 mp3.log.setLevel("ERROR")   # Отключаем вывод предупреждений. Теперь в консоль будут выводиться только ошибки.
 
 
-def check_exist(path):  # Работает на Win норм
+def check_exist(path):  # Работает на Win
     return os.access(path, os.F_OK)
 
 
-def check_read(path):   # Работает на Win норм
+def check_read(path):   # Работает на Win только для файлов
     try:
         with open(path) as file:
             temp = file.read()
-            file.write('t')
     except PermissionError:
         return False
     return True
 
 
-def allowed_x(path, *args, notify=True):
+def allowed_x(path, *args, notify=True):    # Проверка прав доступа. На ОС Windows работает частично
     checks = {
         'exist': [os.F_OK, f'Путь {path} не существует'],
         'read': [os.R_OK, f'Недостаточно прав для чтения из {path}'],
@@ -35,14 +34,14 @@ def allowed_x(path, *args, notify=True):
 
 
 def mp3_processor(path):
-    f = mp3.load(path)
-    t = f.tag
-    if t.album_artist and t.album:
+    f = mp3.load(path)  # Файл
+    t = f.tag           # Тег
+    if t.album_artist and t.album:  # Если оба тега не пусты, формируем новый путь
         result = f'{t.title if t.title else os.path.basename(path)[:-4]} - {t.album_artist} - {t.album + ".mp3"}'
         result = os.path.join(t.album_artist, t.album, result)
-    else:
+    else:                           # Если хотя бы 1 пуст - выводим сообщение
         print(f'Warning: Tags "artist" or "album" not defined for {path}')
-        result = path
+        result = path               # Как результат вернём исходный путь
     return result
 
 
@@ -51,12 +50,13 @@ def move(src, dst, notify=True):
         os.renames(src, dst)        # Пытаемся переместить файл
     except FileExistsError:         # Если в директории назначения он уже существует
         os.replace(src, dst)        # Делаем замену
-        d = os.path.dirname(src)    # Получаем путь к папке
+        d = os.path.dirname(src)    # Получаем путь к папке, откуда забрали файл
         if not os.listdir(d):       # Проверяем на "пустоту", т.к. метод replace не удаляет за собой пустые папки
             os.removedirs(d)        # Если файлов нет - удаляем
     finally:
-        if notify:
-            print(f'{src} -> {dst}')    # Выводим сообщение в лог
+        if notify:                      # Если вызов с флагом "notify", то
+            print(f'{src} -> {dst}')    # выводим сообщение в лог
+
 
 @click.command()
 @click.option('-s', '--src_dir', default=os.getcwd(), help='Source directory')
@@ -64,6 +64,12 @@ def move(src, dst, notify=True):
 @click.option('-n', '--nested', default=False, help='Set "True" to enable searching nested files inside subdirectories')
 def sort(src_dir, dst_dir, nested=False):
     """Simple program that sorts mp3-files."""
+
+    if not os.path.isdir(src_dir):                  # Проверяем исходный путь на директорию
+        print(f'Путь {src_dir} не является директорией')
+        return
+    if os
+
     if not allowed_x(src_dir, 'exist'):             # Проверяем наличие исходной директории,
         return                                      # если она не существует - выходим
     if not allowed_x(dst_dir, 'exist'):             # Проверяем наличие директории назначения, если её нет - то
@@ -74,15 +80,16 @@ def sort(src_dir, dst_dir, nested=False):
             return                                  # но прав на запись не имеем - выходим
 
     for d, dirs, files in os.walk(src_dir):         # Итерируемся по дереву
-        if not allowed_x(d, 'write'):               # Проверяем разрещение на запись в папке (чтобы переименовать файл),
+        if not allowed_x(d, 'write'):               # Проверяем разрешение на запись в папке (чтобы переименовать файл),
             continue                                # если его нету - идём в следующую директорию
         for file in files:                          # Итерируемся по файлам
             if file.endswith('.mp3'):               # Если формат - mp3
                 old = os.path.join(d, file)         # Получаем "старый" путь
                 new = os.path.join(dst_dir, mp3_processor(old))     # Формируем новый путь
-                move(old, new)                      # Перемещаем файл
-        if not nested:                              # Если запустились в режиме поверхностного поиска - выходим
-            return
+                if new != old:                      # Проверяем на идентичность путей
+                    move(old, new)                  # Перемещаем файл
+        if not nested:                              # Если запустились в режиме поверхностного поиска - выходим,
+            return                                  # т.к. корневую директорию уже проверили
 
 
 if __name__ == '__main__':
