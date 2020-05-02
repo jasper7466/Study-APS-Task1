@@ -34,6 +34,18 @@ def allowed_x(path, *args, notify=True):
     return True
 
 
+def mp3_processor(path):
+    f = mp3.load(path)
+    t = f.tag
+    if t.album_artist and t.album:
+        result = f'{t.title if t.title else os.path.basename(path)[:-4]} - {t.album_artist} - {t.album + ".mp3"}'
+        result = os.path.join(t.album_artist, t.album, result)
+    else:
+        print(f'Warning: Tags "artist" or "album" not defined for {path}')
+        result = path
+    return result
+
+
 @click.command()
 @click.option('-s', '--src_dir', default=os.getcwd(), help='Source directory')
 @click.option('-d', '--dst_dir', default=os.getcwd(), help='Destination directory')
@@ -55,18 +67,14 @@ def sort(src_dir, dst_dir, nested=False):
             continue
         for file in files:                                  # Итерировнаие по файлам
             if file.endswith('.mp3'):                       # Если mp3
-                f = mp3.load(os.path.join(d, file))       # Открываем
-                t = f.tag
-                if t.album_artist and t.album:              # Если прописаны теги "исполнитель" и "альбом"
-                    name = f'{t.title if t.title else file[:-4]} - {t.album_artist} - {t.album}'
-                    f.rename(name)
-                    paths = (f.path, os.path.join(dst_dir, t.album_artist, t.album, name + '.mp3'))
-                    try:
-                        os.renames(*paths)
-                    except FileExistsError:
-                        os.replace(*paths)
-                else:
-                    print(f'Warning: Tags "artist" or "album" not defined for {f.path}')
+                current = os.path.join(d, file)
+                new = os.path.join(dst_dir, mp3_processor(current))
+                try:
+                    os.renames(current, new)
+                except FileExistsError:
+                    os.replace(current, new)
+                finally:
+                    print(f'{current} -> {new}')
         if not nested:
             return
 
