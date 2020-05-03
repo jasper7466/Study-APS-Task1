@@ -1,21 +1,8 @@
-import os
-import click
-import eyed3 as mp3
-from colorama import Fore   # Модуль для кросплатформенного форматирования
+import os                   # Модуль для работы с файловой системой
+import click                # Модуль для реализации CLI
+import eyed3 as mp3         # Модуль для парсинга mp3-тегов
+from colorama import Fore   # Модуль для кроccплатформенного форматирования
 from colorama import init   # консольного вывода
-
-
-def check_exist(path):  # Работает на Win
-    return os.access(path, os.F_OK)
-
-
-def check_read(path):   # Работает на Win только для файлов
-    try:
-        with open(path) as file:
-            temp = file.read()
-    except PermissionError:
-        return False
-    return True
 
 
 def allowed_x(path, *args, notify=True):    # Проверка прав доступа. На ОС Windows работает частично
@@ -107,6 +94,9 @@ def sort(src_dir, dst_dir, nested=False, create=False, all_ver=False):
     <dst_dir>/<Artist_2>/<Album_3>/Track_4 - Artist_2 - Album_3.mp3
     ... etc.
     """
+    total = 0   # Файлов всего
+    audio = 0   # Файлов mp3
+    moved = 0   # Файлов перемещено
 
     # Предварительные проверки. Позволяют не начинать итерирование, если не выполняются обязательные условия
     if not os.path.isdir(src_dir):                  # Проверяем исходный путь на директорию
@@ -130,16 +120,29 @@ def sort(src_dir, dst_dir, nested=False, create=False, all_ver=False):
         if not allowed_x(d, 'write'):               # Проверяем разрешение на запись в папке (чтобы переименовать файл),
             continue                                # если его нету - идём в следующую директорию
         for file in files:                          # Итерируемся по файлам
+            total += 1
             if file.endswith('.mp3'):               # Если формат - mp3
+                audio += 1
                 old = os.path.join(d, file)         # Получаем "старый" путь
                 new = os.path.join(dst_dir, mp3_processor(old, all_ver))     # Формируем новый путь
-                move(old, new)                      # Пробуем переместить файл
+                if move(old, new):                  # Пробуем переместить файл
+                    moved += 1
         if not nested:                              # Если запустились в режиме "поверхностного поиска" - выходим,
-            return                                  # т.к. корневую директорию уже проверили
+            break                                   # т.к. корневую директорию уже проверили
+
+    print(Fore.BLUE + f'''===========================
+Статистика
+===========================
+Обнаружено файлов всего: {total}
+Из них mp3-файлов: {audio}
+Перемещено: {moved}
+Не удалось переместить: {audio - moved}
+===========================
+Done.
+    ''')
 
 
 if __name__ == '__main__':
     init(autoreset=True)        # Инициализация с автосбросом цвета текста на значение по умолчанию после вызова print()
     mp3.log.setLevel("ERROR")   # Отключаем вывод предупреждений. Теперь в консоль будут выводиться только ошибки.
     sort()                      # Запуск основной функции
-    print(Fore.BLUE + 'Done.')
