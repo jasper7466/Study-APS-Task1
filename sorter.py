@@ -32,14 +32,14 @@ def mp3_processor(path, all_ver=False):
     Function `mp3_processor(path).`
     Analyzes ID3 tags of file from `path` and generate new path according some rules.
     """
+    result = path           # По умолчанию как результат возвращаем исходный путь
     try:
         f = mp3.load(path)  # Файл
     except PermissionError:
         print(Fore.RED + f'Недостаточно прав для чтения файла {path}')
-        return path
+        return result
     else:
         t = f.tag           # Тег
-        result = path       # По умолчанию как результат возвращаем исходный путь
         if not all_ver and (t.version[0] < 2):  # Фильтруем по версии (если фильтр включен)
             print(Fore.YELLOW + f'Предупреждение: Недопустимая версия тега ID3 для {path}')
             return result
@@ -121,24 +121,24 @@ def sort(src_dir, dst_dir, nested=False, create=False, all_ver=False):
         if not allowed_x(d, 'write'):               # Проверяем разрешение на запись в папке (чтобы переименовать файл),
             continue                                # если его нету - идём в следующую директорию
         for file in files:                          # Итерируемся по файлам
-            total += 1
+            total += 1                              # Статистика
             if file.endswith('.mp3'):               # Если формат - mp3
-                audio += 1
+                audio += 1                          # Статистика
                 old = os.path.join(d, file)         # Получаем "старый" путь
                 new = os.path.join(dst_dir, mp3_processor(old, all_ver))     # Формируем новый путь
                 if move(old, new):                  # Пробуем переместить файл
-                    moved += 1
+                    moved += 1                      # Статистика
         if not nested:                              # Если запустились в режиме "поверхностного поиска" - выходим,
             break                                   # т.к. корневую директорию уже проверили
 
-    print(Fore.BLUE + f'''===========================
+    print(Fore.BLUE + f'''==============================
 Статистика
-===========================
+==============================
 Обнаружено файлов всего: {total}
-Из них mp3-файлов: {audio}
-Перемещено: {moved}
-Не удалось переместить: {audio - moved}
-===========================
+Из них mp3-файлов:       {audio}
+Перемещено:              {moved}
+Не удалось переместить:  {audio - moved}
+==============================
 Done.
     ''')
 
