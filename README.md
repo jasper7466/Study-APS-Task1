@@ -59,7 +59,7 @@ Antida Python School. Итоговое задание первого блока.
 
 ## Актуальная версия
 
- - Версия: [v1.0.0](https://github.com/jasper7466//tree/v1.0.0)
+ - Версия: [v1.0.0](https://github.com/jasper7466/Study-APS-Task1/tree/v1.0.1)
 
 ## Как развернуть проект
 
