@@ -52,12 +52,15 @@ def mp3_processor(path, all=False):
         if t.version[0] < 2:
             print(Fore.YELLOW + f'Предупреждение: Недопустимая версия тега ID3 для {path}')
             return result
-    if t.album_artist and t.album:  # Если оба тега не пусты, формируем новый путь
-        result = f'{t.title if t.title else os.path.basename(path)[:-4]} - {t.album_artist} - {t.album + ".mp3"}'
-        result = os.path.join(t.album_artist, t.album, result)
+    if t.artist and t.album:  # Если оба тега не пусты, формируем новый путь
+        album = t.album.lstrip().rstrip()
+        artist = t.artist.lstrip().rstrip()
+        title = t.title.lstrip().rstrip() if t.title else os.path.basename(path)[:-4]
+        result = os.path.join(artist, album, f'{title} - {artist} - {album + ".mp3"}')
     else:                           # Если хотя бы 1 пуст - выводим сообщение
         print(Fore.YELLOW + f'Предупреждение: Теги "исполнитель" или "альбом" не определены для {path}')
     return result
+
 
 def move(src, dst, notify=True):
     """
