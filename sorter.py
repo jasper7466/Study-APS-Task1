@@ -40,26 +40,29 @@ def allowed_x(path, *args, notify=True):    # Проверка прав дост
     return True
 
 
-def mp3_processor(path, all=False):
+def mp3_processor(path, all_ver=False):
     """
     Function `mp3_processor(path).`
     Analyzes ID3 tags of file from `path` and generate new path according some rules.
     """
-    f = mp3.load(path)  # Файл
-    t = f.tag           # Тег
-    result = path       # По умолчанию как результат возвращаем исходный путь
-    if not all:
-        if t.version[0] < 2:
+    try:
+        f = mp3.load(path)  # Файл
+    except PermissionError:
+        print(Fore.RED + f'Недостаточно прав для чтения файла {path}')
+    else:
+        t = f.tag           # Тег
+        result = path       # По умолчанию как результат возвращаем исходный путь
+        if not all_ver and (t.version[0] < 2):  # Фильтруем по версии (если фильтр включен)
             print(Fore.YELLOW + f'Предупреждение: Недопустимая версия тега ID3 для {path}')
             return result
-    if t.artist and t.album:  # Если оба тега не пусты, формируем новый путь
-        album = t.album.lstrip().rstrip()
-        artist = t.artist.lstrip().rstrip()
-        title = t.title.lstrip().rstrip() if t.title else os.path.basename(path)[:-4]
-        result = os.path.join(artist, album, f'{title} - {artist} - {album + ".mp3"}')
-    else:                           # Если хотя бы 1 пуст - выводим сообщение
-        print(Fore.YELLOW + f'Предупреждение: Теги "исполнитель" или "альбом" не определены для {path}')
-    return result
+        if t.artist and t.album:    # Если оба тега не пусты, формируем новый путь
+            album = t.album.lstrip().rstrip()
+            artist = t.artist.lstrip().rstrip()
+            title = t.title.lstrip().rstrip() if t.title else os.path.basename(path)[:-4]
+            result = os.path.join(artist, album, f'{title} - {artist} - {album + ".mp3"}')
+        else:                       # Если хотя бы 1 пуст - выводим сообщение
+            print(Fore.YELLOW + f'Предупреждение: Теги "исполнитель" или "альбом" не определены для {path}')
+        return result
 
 
 def move(src, dst, notify=True):
@@ -68,16 +71,23 @@ def move(src, dst, notify=True):
     Moves files from `src` path to `dst` path.
     To disable console logging - clear `notify` flag (set `False`).
     """
+    if src == dst:  # Проверяем на идентичность путей
+        return False
     try:
-        os.renames(src, dst)        # Пытаемся переместить файл
-    except FileExistsError:         # Если в директории назначения он уже существует
-        os.replace(src, dst)        # Делаем замену
-        d = os.path.dirname(src)    # Получаем путь к папке, откуда забрали файл
-        if not os.listdir(d):       # Проверяем на "пустоту", т.к. метод replace не удаляет за собой пустые папки
-            os.removedirs(d)        # Если файлов нет - удаляем
-    finally:
-        if notify:                                  # Если вызов с флагом "notify", то
-            print(Fore.GREEN + f'{src} -> {dst};')   # выводим сообщение в лог
+        try:
+            os.renames(src, dst)        # Пытаемся переместить файл
+        except FileExistsError:         # Если в директории назначения он уже существует
+            os.replace(src, dst)        # Делаем замену
+            d = os.path.dirname(src)    # Получаем путь к папке, откуда забрали файл
+            if not os.listdir(d):       # Проверяем на "пустоту", т.к. метод replace не удаляет за собой пустые папки
+                os.removedirs(d)        # Если файлов нет - удаляем
+    except PermissionError:             # Если нет прав для перемещения
+        print(Fore.RED + f'Недостаточно прав доступа для перемещения {src} -> {dst}')
+        return False
+    else:
+        if notify:  # Если вызов с флагом "notify", то
+            print(Fore.GREEN + f'{src} -> {dst};')  # выводим сообщение в лог
+        return True
 
 
 @click.command()
@@ -98,22 +108,22 @@ def sort(src_dir, dst_dir, nested=False, create=False, all_ver=False):
     ... etc.
     """
 
-    # Предварительные проверки
+    # Предварительные проверки. Позволяют не начинать итерирование, если не выполняются обязательные условия
     if not os.path.isdir(src_dir):                  # Проверяем исходный путь на директорию
         if not allowed_x(src_dir, 'exist'):         # Проверяем наличие исходной директории,
             return                                  # Если она не существует - выходим
         else:                                       # Если существует, но не директория
-            print(Fore.RED + f'Путь {src_dir} не является директорией') # Выводим сообщение
+            print(Fore.RED + f'Путь {src_dir} не является директорией')     # Выводим сообщение
             return                                  # и выходим
 
-    if not allowed_x(dst_dir, 'exist'):             # Проверяем наличие директории назначения, если её нет - то
-        if not create:                              # Если без вызваны флага автосоздания директории
+    if not allowed_x(dst_dir, 'exist'):             # Проверяем наличие директории назначения, если её нет и
+        if not create:                              # если вызваны без флага автосоздания директории
             print(Fore.YELLOW + 'Хотите создать директорию [y - да / n - выход]?',  end=' ')   # предлагаем создать
             if input() != 'y':
                 return                              # Если пользователь не хочет создавать - выходим
     else:
         if not allowed_x(dst_dir, 'write'):         # Если директория назначения существует,
-            return                                  # но прав на записьв неё не имеем - выходим
+            return                                  # но прав на запись в неё не имеем - выходим
 
     # Основной алгоритм
     for d, dirs, files in os.walk(src_dir):         # Итерируемся по дереву
@@ -123,8 +133,7 @@ def sort(src_dir, dst_dir, nested=False, create=False, all_ver=False):
             if file.endswith('.mp3'):               # Если формат - mp3
                 old = os.path.join(d, file)         # Получаем "старый" путь
                 new = os.path.join(dst_dir, mp3_processor(old, all_ver))     # Формируем новый путь
-                if new != old:                      # Проверяем на идентичность путей
-                    move(old, new)                  # Перемещаем файл, если они различны
+                move(old, new)                      # Пробуем переместить файл
         if not nested:                              # Если запустились в режиме "поверхностного поиска" - выходим,
             return                                  # т.к. корневую директорию уже проверили
 
