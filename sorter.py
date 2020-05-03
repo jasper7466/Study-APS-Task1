@@ -36,6 +36,7 @@ def mp3_processor(path, all_ver=False):
         f = mp3.load(path)  # Файл
     except PermissionError:
         print(Fore.RED + f'Недостаточно прав для чтения файла {path}')
+        return path
     else:
         t = f.tag           # Тег
         result = path       # По умолчанию как результат возвращаем исходный путь
@@ -69,7 +70,7 @@ def move(src, dst, notify=True):
             if not os.listdir(d):       # Проверяем на "пустоту", т.к. метод replace не удаляет за собой пустые папки
                 os.removedirs(d)        # Если файлов нет - удаляем
     except PermissionError:             # Если нет прав для перемещения
-        print(Fore.RED + f'Недостаточно прав доступа для перемещения {src} -> {dst}')
+        print(Fore.RED + f'Недостаточно прав для перемещения {src} -> {dst}')
         return False
     else:
         if notify:  # Если вызов с флагом "notify", то
