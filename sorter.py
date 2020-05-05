@@ -79,11 +79,11 @@ def move(src, dst, notify=True):
 
 
 @click.command()
-@click.option('-s', '--src_dir', default=os.getcwd(), help='Source directory')
-@click.option('-d', '--dst_dir', default=os.getcwd(), help='Destination directory')
+@click.option('-s', '--src-dir', default=os.getcwd(), help='Source directory')
+@click.option('-d', '--dst-dir', default=os.getcwd(), help='Destination directory')
 @click.option('-n', '--nested', default=False, help='Searching nested files inside subdirectories. Set "True" to enable')
 @click.option('-c', '--create', default=False, help='Auto create destination directory. Set "True" to enable ')
-@click.option('-a', '--all_ver', default=False, help='Analyze all ID3 versions (not only V2+). Set "True" to enable ')
+@click.option('-a', '--all-ver', default=False, help='Analyze all ID3 versions (not only V2+). Set "True" to enable ')
 def sort(src_dir, dst_dir, nested=False, create=False, all_ver=False):
     """
     Simple program that sorts mp3-files.
